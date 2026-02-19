@@ -84,13 +84,29 @@ class MessageController
         $user_id = $_SESSION['user_id'];
 
         // Fetch the specific message (only if user is current owner or sender)
-        $stmt = $this->db->prepare("
+        // Fetch the specific message
+        // Allow access if:
+        // 1. User is Sender
+        // 2. User is Current Owner
+        // 3. User was a Previous Owner (exists in workflow_logs)
+        // 4. User is an Admin (optional, but good for support)
+
+        $role = $_SESSION['role'] ?? '';
+
+        $sql = "
             SELECT m.*, u.name as sender_name 
             FROM messages m 
             JOIN users u ON m.sender_id = u.user_id 
-            WHERE m.message_id = ? AND (m.current_owner_id = ? OR m.sender_id = ?)
-        ");
-        $stmt->execute([$id, $user_id, $user_id]);
+            WHERE m.message_id = ? 
+            AND (
+                ? = 'admin'
+                OR m.sender_id = ? 
+                OR m.current_owner_id = ?
+                OR EXISTS (SELECT 1 FROM workflow_logs wl WHERE wl.message_id = m.message_id AND (wl.previous_owner_id = ? OR wl.new_owner_id = ?))
+            )
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id, $role, $user_id, $user_id, $user_id, $user_id]);
         $message = $stmt->fetch();
 
         $message = $stmt->fetch();

@@ -83,10 +83,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await fetch('/api/proxy/logout', { method: 'POST' });
         } catch (e) {
             console.error(e);
+        } finally {
+            setUser(null);
+            localStorage.removeItem('user');
+            router.push('/login');
+            router.refresh();
         }
-        setUser(null);
-        localStorage.removeItem('user');
-        router.push('/login');
     };
 
     return (

@@ -37,8 +37,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                 setMessage(data);
                 setEditBody(data.body);
             } else {
-                alert('Message not found or access denied');
-                router.push('/');
+                setMessage(null); // Will trigger "Message not found" UI
             }
         } catch (e) {
             console.error('Error fetching message:', e);
@@ -117,8 +116,29 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading message...</div>;
-    if (!message) return <div className="p-8 text-center text-gray-500">Message not found</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center min-h-[50vh]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+    );
+
+    if (!message) return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-4">
+            <div className="bg-gray-100 p-4 rounded-full">
+                <AlertTriangle className="h-8 w-8 text-gray-400" />
+            </div>
+            <div>
+                <h3 className="text-lg font-medium text-gray-900">Access Denied or Message Not Found</h3>
+                <p className="text-gray-500 mt-1">You do not have permission to view this message, or it does not exist.</p>
+            </div>
+            <button
+                onClick={() => router.push('/')}
+                className="text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+                ← Return to Dashboard
+            </button>
+        </div>
+    );
 
     // Find the latest return comment
     const lastReturnLog = message.workflow_logs

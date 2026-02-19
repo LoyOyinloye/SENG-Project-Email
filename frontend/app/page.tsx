@@ -139,8 +139,8 @@ export default function Dashboard() {
                 ) : (
                     <ul role="list" className="divide-y divide-gray-200">
                         {messages.slice(0, 5).map((msg) => (
-                            <li key={msg.message_id} onClick={() => router.push(`/message/${msg.message_id}`)} className="hover:bg-gray-50 cursor-pointer block transition duration-150 ease-in-out">
-                                <div className="px-4 py-4 sm:px-6">
+                            <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
+                                <Link href={`/message/${msg.message_id}`} className="block px-4 py-4 sm:px-6">
                                     <div className="flex items-center justify-between">
                                         <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
                                             {msg.subject}
@@ -168,7 +168,7 @@ export default function Dashboard() {
                                             </p>
                                         </div>
                                     </div>
-                                </div>
+                                </Link>
                             </li>
                         ))}
                     </ul>

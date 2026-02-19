@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Send, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SentPage() {
     const { user, isLoading } = useAuth() as any;
@@ -62,8 +63,8 @@ export default function SentPage() {
                 ) : (
                     <ul role="list" className="divide-y divide-gray-200">
                         {messages.map((msg) => (
-                            <li key={msg.message_id} onClick={() => router.push(`/message/${msg.message_id}`)} className="hover:bg-gray-50 cursor-pointer block transition duration-150 ease-in-out">
-                                <div className="px-4 py-4 sm:px-6">
+                            <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
+                                <Link href={`/message/${msg.message_id}`} className="block px-4 py-4 sm:px-6">
                                     <div className="flex items-center justify-between">
                                         <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
                                             {msg.subject}
@@ -90,7 +91,7 @@ export default function SentPage() {
                                             </p>
                                         </div>
                                     </div>
-                                </div>
+                                </Link>
                             </li>
                         ))}
                     </ul>
