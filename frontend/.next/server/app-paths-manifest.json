@@ -1,0 +1,7 @@
+{
+  "/sent/page": "app/sent/page.js",
+  "/returned/page": "app/returned/page.js",
+  "/inbox/page": "app/inbox/page.js",
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js"
+}
