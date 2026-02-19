@@ -9,19 +9,23 @@ services:
       - .:/var/www/html
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
-      - DB_HOST=db
-      - DB_NAME=email_workflow
-      - DB_USER=user
-      - DB_PASS=password
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
 
   db:
     image: mysql:8.0
+    env_file:
+      - .env
     environment:
-      - MYSQL_DATABASE=email_workflow
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=password
-      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:

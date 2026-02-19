@@ -1,5 +1,7 @@
+.env
 vendor/
 node_modules/
-.env
+dist/
 .DS_Store
-*.log
+.idea/
+.vscode/
