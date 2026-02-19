@@ -18,9 +18,9 @@ export default function LoginPage() {
         <div className="flex min-h-[80vh] items-center justify-center">
             <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-lg">
                 <div className="text-center">
-                    <img src="/babcock_logo.png" alt="Babcock University" className="mx-auto h-24 w-auto mb-4" />
+                    <img src="/bu_logo_main.png" alt="Babcock University" className="mx-auto h-24 w-auto mb-4" />
                     <h2 className="text-3xl font-bold tracking-tight text-blue-900">
-                        Sign in to InstiMail
+                        Sign in to BuMail
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         Babcock University Workflow System

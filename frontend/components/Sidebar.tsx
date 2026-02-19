@@ -40,7 +40,7 @@ export default function Sidebar() {
         <div className="flex flex-col h-screen w-64 bg-white border-r border-gray-200">
             {/* Logo */}
             <div className="flex items-center h-20 px-6 border-b border-gray-200">
-                <img src="/babcock_logo.png" alt="Babcock Logo" className="h-12 w-auto mr-3" />
+                <img src="/bu_logo_main.png" alt="Babcock Logo" className="h-12 w-auto mr-3" />
                 <div className="flex flex-col">
                     <span className="text-sm font-bold text-blue-900 uppercase tracking-wider">Babcock</span>
                     <span className="text-xs font-semibold text-gray-500">Workflow System</span>
