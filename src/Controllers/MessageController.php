@@ -109,8 +109,6 @@ class MessageController
         $stmt->execute([$id, $role, $user_id, $user_id, $user_id, $user_id]);
         $message = $stmt->fetch();
 
-        $message = $stmt->fetch();
-
         if (!$message) {
             http_response_code(404);
             echo json_encode(['error' => 'Message not found or access denied']);
