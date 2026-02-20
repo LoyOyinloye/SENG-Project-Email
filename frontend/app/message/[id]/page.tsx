@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AlertTriangle, Send } from 'lucide-react';
+import { AlertTriangle, Send, Paperclip, Download, FileText, Image as ImageIcon } from 'lucide-react';
 
 export default function MessageDetail({ params }: { params: { id: string } }) {
     const { id } = params;
@@ -65,7 +65,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
             headers: { 'Content-Type': 'application/json' }
         });
         if (res.ok) {
-            router.push('/');
+            router.push('/inbox');
         } else {
             alert('Failed to return message');
         }
@@ -82,7 +82,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
             headers: { 'Content-Type': 'application/json' }
         });
         if (res.ok) {
-            router.push('/');
+            router.push('/inbox');
         } else {
             alert('Failed to forward message');
         }
@@ -96,7 +96,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
             headers: { 'Content-Type': 'application/json' }
         });
         if (res.ok) {
-            router.push('/');
+            router.push('/inbox');
         } else {
             alert('Failed to complete message');
         }
@@ -110,7 +110,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
         });
         if (res.ok) {
             alert('Message Resubmitted!');
-            router.push('/');
+            router.push('/inbox');
         } else {
             alert('Failed to resubmit message');
         }
@@ -132,10 +132,10 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                 <p className="text-gray-500 mt-1">You do not have permission to view this message, or it does not exist.</p>
             </div>
             <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/inbox')}
                 className="text-indigo-600 hover:text-indigo-800 font-medium"
             >
-                ← Return to Dashboard
+                ← Back to Inbox
             </button>
         </div>
     );
@@ -150,7 +150,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
 
     return (
         <div className="bg-white shadow rounded-lg p-6 space-y-6">
-            <button onClick={() => router.push('/')} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium inline-block">
+            <button onClick={() => router.push('/inbox')} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium inline-block">
                 ← Back to Inbox
             </button>
 
@@ -220,14 +220,60 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
             {/* Attachments */}
             {message.attachments && message.attachments.length > 0 && (
                 <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Attachments</h4>
-                    <ul className="space-y-1">
-                        {message.attachments.map((att: any) => (
-                            <li key={att.attachment_id} className="text-sm text-indigo-600 hover:underline">
-                                📎 {att.filename}
-                            </li>
-                        ))}
-                    </ul>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                        <Paperclip className="h-4 w-4 mr-1" />
+                        Attachments ({message.attachments.length})
+                    </h4>
+                    <div className="space-y-3">
+                        {message.attachments.map((att: any) => {
+                            const isImage = att.mime_type && att.mime_type.startsWith('image/');
+                            const fileUrl = `/api/proxy/${att.file_path}`;
+                            return (
+                                <div key={att.attachment_id} className="border rounded-lg overflow-hidden">
+                                    {isImage ? (
+                                        <div className="bg-gray-50">
+                                            <img
+                                                src={fileUrl}
+                                                alt={att.filename}
+                                                className="max-w-full max-h-[500px] object-contain mx-auto block"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    const fallback = target.nextElementSibling as HTMLElement;
+                                                    if (fallback) fallback.style.display = 'flex';
+                                                }}
+                                            />
+                                            <div className="hidden items-center justify-center p-8 text-gray-400">
+                                                <ImageIcon className="h-12 w-12" />
+                                                <p className="ml-2">Image could not be loaded</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center p-3 bg-gray-50">
+                                            <FileText className="h-8 w-8 text-gray-400 flex-shrink-0" />
+                                            <div className="ml-3 min-w-0 flex-1">
+                                                <p className="text-sm font-medium text-gray-900 truncate">{att.filename}</p>
+                                                <p className="text-xs text-gray-500">{att.mime_type || 'File'}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="border-t px-3 py-2 bg-white flex items-center justify-between">
+                                        <span className="text-xs text-gray-500 truncate">{att.filename}</span>
+                                        <a
+                                            href={fileUrl}
+                                            download={att.filename}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center flex-shrink-0 ml-2"
+                                        >
+                                            <Download className="h-3 w-3 mr-1" />
+                                            Download
+                                        </a>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 
