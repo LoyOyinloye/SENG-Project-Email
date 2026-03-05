@@ -104,54 +104,54 @@ export default function InboxPage() {
                     <ul role="list" className="divide-y divide-gray-200">
                         {messages.map((msg) => (
                             <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
-                                <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
-                                    <div className="flex items-center">
-                                        <Link href={`/message/${msg.message_id}`} className="block px-4 py-4 sm:px-6 flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
-                                                    {msg.subject}
-                                                    {!msg.is_read && <span className="ml-2 h-2 w-2 bg-blue-600 rounded-full"></span>}
-                                                </div>
-                                                <div className="ml-2 flex-shrink-0 flex">
-                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                    ${msg.current_status === 'returned' ? 'bg-amber-100 text-amber-800' :
-                                                            msg.current_status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                                msg.current_status === 'forwarded' ? 'bg-indigo-100 text-indigo-800' :
-                                                                    'bg-blue-100 text-blue-800'}`}>
-                                                        {msg.current_status}
-                                                    </span>
-                                                </div>
+                                <div className="flex items-center">
+                                    <Link href={`/message/${msg.message_id}`} className="block px-4 py-4 sm:px-6 flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
+                                                {msg.subject}
+                                                {!msg.is_read && <span className="ml-2 h-2 w-2 bg-blue-600 rounded-full"></span>}
                                             </div>
-                                            <div className="mt-2 sm:flex sm:justify-between">
-                                                <div className="sm:flex">
-                                                    <p className="flex items-center text-sm text-gray-500">
-                                                        From: {msg.sender_name}
-                                                    </p>
-                                                </div>
-                                                <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                                                    <p>
-                                                        {new Date(msg.created_at).toLocaleDateString()}
-                                                    </p>
-                                                </div>
+                                            <div className="ml-2 flex-shrink-0 flex">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                ${msg.current_status === 'returned' ? 'bg-amber-100 text-amber-800' :
+                                                        msg.current_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                            msg.current_status === 'forwarded' ? 'bg-indigo-100 text-indigo-800' :
+                                                                'bg-blue-100 text-blue-800'}`}>
+                                                    {msg.current_status}
+                                                </span>
                                             </div>
-                                        </Link>
-                                        {msg.current_status !== 'returned' && (
-                                            <div className="pr-4 flex-shrink-0">
-                                                <button
-                                                    onClick={(e) => confirmDelete(msg.message_id, e)}
-                                                    className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
-                                                    title="Delete message"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                        </div>
+                                        <div className="mt-2 sm:flex sm:justify-between">
+                                            <div className="sm:flex">
+                                                <p className="flex items-center text-sm text-gray-500">
+                                                    From: {msg.sender_name}
+                                                </p>
                                             </div>
-                                        )}
-                                    </div>
-                                </li>
+                                            <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                                <p>
+                                                    {new Date(msg.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                    {msg.current_status !== 'returned' && (
+                                        <div className="pr-4 flex-shrink-0">
+                                            <button
+                                                onClick={(e) => confirmDelete(msg.message_id, e)}
+                                                className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                                                title="Delete message"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </li>
                         ))}
-                            </ul>
-                        )}
-                    </div>
+                    </ul>
+                )}
+            </div>
+
             <ConfirmModal
                 isOpen={deleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}
@@ -160,5 +160,5 @@ export default function InboxPage() {
                 message="Are you sure you want to delete this message? This action cannot be undone."
             />
         </div>
-            );
+    );
 }
