@@ -16,6 +16,7 @@ export default function ComposePage() {
         body: ''
     });
     const [file, setFile] = useState<File | null>(null);
+    const [fileError, setFileError] = useState('');
 
     useEffect(() => {
         if (!isLoading && !user) router.push('/login');
@@ -54,7 +55,7 @@ export default function ComposePage() {
                 body: data
             });
             if (res.ok) {
-                router.push('/');
+                router.push('/sent');
             } else {
                 const err = await res.json().catch(() => ({ error: 'Unknown error' }));
                 alert(`Failed to send message: ${err.error || 'Unknown error'}`);
@@ -113,8 +114,20 @@ export default function ComposePage() {
                     <input
                         type="file"
                         className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                        onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                        onChange={(e) => {
+                            const selected = e.target.files ? e.target.files[0] : null;
+                            if (selected && selected.size > 5 * 1024 * 1024) {
+                                setFileError('File size exceeds 5MB limit');
+                                setFile(null);
+                                e.target.value = '';
+                            } else {
+                                setFileError('');
+                                setFile(selected);
+                            }
+                        }}
                     />
+                    {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+                    <p className="mt-1 text-xs text-gray-400">Maximum file size: 5MB</p>
                 </div>
                 <div className="flex justify-end">
                     <button type="button" onClick={() => router.back()} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4">

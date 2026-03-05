@@ -39,16 +39,23 @@ CREATE TABLE IF NOT EXISTS workflow_logs (
     FOREIGN KEY (new_owner_id) REFERENCES users(user_id)
 );
 
--- Attachments Table (New Feature)
+-- Attachments Table
 CREATE TABLE IF NOT EXISTS attachments (
     attachment_id INT AUTO_INCREMENT PRIMARY KEY,
     message_id INT NOT NULL,
     filename VARCHAR(255) NOT NULL,
-    file_path VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) DEFAULT NULL,
     mime_type VARCHAR(100),
+    file_size INT DEFAULT 0,
+    file_data LONGBLOB,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
 );
+
+-- Migration: Add columns if upgrading from older schema
+-- These are safe to run multiple times due to IF NOT EXISTS behavior
+-- ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_data LONGBLOB;
+-- ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_size INT DEFAULT 0;
 
 -- Insert Default Admin User (password: admin123)
 -- Hash generated using password_hash('admin123', PASSWORD_DEFAULT)

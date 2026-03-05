@@ -227,7 +227,8 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                     <div className="space-y-3">
                         {message.attachments.map((att: any) => {
                             const isImage = att.mime_type && att.mime_type.startsWith('image/');
-                            const fileUrl = `/api/proxy/${att.file_path}`;
+                            const fileUrl = `/api/attachments/${att.attachment_id}`;
+                            const fileSize = att.file_size ? `${(att.file_size / 1024).toFixed(1)} KB` : '';
                             return (
                                 <div key={att.attachment_id} className="border rounded-lg overflow-hidden">
                                     {isImage ? (

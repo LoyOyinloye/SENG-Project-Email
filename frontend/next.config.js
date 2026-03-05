@@ -7,6 +7,10 @@ const nextConfig = {
                 source: '/api/proxy/:path*',
                 destination: 'http://app:80/api/:path*',
             },
+            {
+                source: '/api/attachments/:path*',
+                destination: 'http://app:80/api/attachments/:path*',
+            },
         ];
     },
 };

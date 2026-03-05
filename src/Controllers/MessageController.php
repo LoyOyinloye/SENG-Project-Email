@@ -7,6 +7,7 @@ use PDO;
 class MessageController
 {
     private $db;
+    private const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     public function __construct()
     {
@@ -50,17 +51,30 @@ class MessageController
 
             // Handle Attachments
             if (!empty($_FILES['attachment']['name'])) {
-                $uploadDir = __DIR__ . '/../../public/uploads/';
-                if (!is_dir($uploadDir))
-                    mkdir($uploadDir, 0777, true);
-
-                $fileName = time() . '_' . basename($_FILES['attachment']['name']);
-                $targetPath = $uploadDir . $fileName;
-
-                if (move_uploaded_file($_FILES['attachment']['tmp_name'], $targetPath)) {
-                    $stmt = $this->db->prepare("INSERT INTO attachments (message_id, filename, file_path, mime_type) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$msg_id, $_FILES['attachment']['name'], 'uploads/' . $fileName, $_FILES['attachment']['type']]);
+                // 5MB limit
+                if ($_FILES['attachment']['size'] > self::MAX_FILE_SIZE) {
+                    $this->db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(['error' => 'File size exceeds 5MB limit']);
+                    return;
                 }
+
+                if ($_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
+                    $this->db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(['error' => 'File upload error']);
+                    return;
+                }
+
+                $fileData = file_get_contents($_FILES['attachment']['tmp_name']);
+                $fileName = $_FILES['attachment']['name'];
+                $mimeType = $_FILES['attachment']['type'] ?: 'application/octet-stream';
+                $fileSize = $_FILES['attachment']['size'];
+
+                $stmt = $this->db->prepare(
+                    "INSERT INTO attachments (message_id, filename, mime_type, file_size, file_data) VALUES (?, ?, ?, ?, ?)"
+                );
+                $stmt->execute([$msg_id, $fileName, $mimeType, $fileSize, $fileData]);
             }
 
             // Log it
@@ -122,8 +136,10 @@ class MessageController
             $message['is_read'] = 1;
         }
 
-        // Also fetch attachments
-        $attStmt = $this->db->prepare("SELECT * FROM attachments WHERE message_id = ?");
+        // Fetch attachments (exclude file_data blob from listing)
+        $attStmt = $this->db->prepare(
+            "SELECT attachment_id, message_id, filename, file_path, mime_type, file_size, uploaded_at FROM attachments WHERE message_id = ?"
+        );
         $attStmt->execute([$id]);
         $message['attachments'] = $attStmt->fetchAll();
 
@@ -142,6 +158,80 @@ class MessageController
         $message['workflow_logs'] = $logStmt->fetchAll();
 
         echo json_encode($message);
+    }
+
+    // Serve an attachment file from the database
+    public function serveAttachment($id)
+    {
+        $this->ensureAuth();
+        $user_id = $_SESSION['user_id'];
+        $role = $_SESSION['role'] ?? '';
+
+        // Fetch the attachment with its file data
+        $stmt = $this->db->prepare("
+            SELECT a.*, m.sender_id, m.current_owner_id
+            FROM attachments a
+            JOIN messages m ON a.message_id = m.message_id
+            WHERE a.attachment_id = ?
+        ");
+        $stmt->execute([$id]);
+        $att = $stmt->fetch();
+
+        if (!$att) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Attachment not found']);
+            return;
+        }
+
+        // Check access: user must be sender, current owner, admin, or in workflow
+        $hasAccess = false;
+        if ($role === 'admin') {
+            $hasAccess = true;
+        }
+        elseif ($att['sender_id'] == $user_id || $att['current_owner_id'] == $user_id) {
+            $hasAccess = true;
+        }
+        else {
+            // Check workflow logs
+            $logStmt = $this->db->prepare(
+                "SELECT 1 FROM workflow_logs WHERE message_id = ? AND (previous_owner_id = ? OR new_owner_id = ?) LIMIT 1"
+            );
+            $logStmt->execute([$att['message_id'], $user_id, $user_id]);
+            $hasAccess = (bool)$logStmt->fetch();
+        }
+
+        if (!$hasAccess) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Access denied']);
+            return;
+        }
+
+        // If file_data exists in DB, serve from DB
+        if (!empty($att['file_data'])) {
+            $mime = $att['mime_type'] ?: 'application/octet-stream';
+            header('Content-Type: ' . $mime);
+            header('Content-Length: ' . ($att['file_size'] ?: strlen($att['file_data'])));
+            header('Content-Disposition: inline; filename="' . addslashes($att['filename']) . '"');
+            header('Cache-Control: private, max-age=3600');
+            echo $att['file_data'];
+            return;
+        }
+
+        // Fallback: try filesystem (for legacy uploads)
+        if (!empty($att['file_path'])) {
+            $filePath = __DIR__ . '/../../public/' . $att['file_path'];
+            if (file_exists($filePath)) {
+                $mime = $att['mime_type'] ?: mime_content_type($filePath) ?: 'application/octet-stream';
+                header('Content-Type: ' . $mime);
+                header('Content-Length: ' . filesize($filePath));
+                header('Content-Disposition: inline; filename="' . addslashes($att['filename']) . '"');
+                readfile($filePath);
+                return;
+            }
+        }
+
+        http_response_code(404);
+        echo json_encode(['error' => 'File data not found']);
     }
 
     public function inbox()
