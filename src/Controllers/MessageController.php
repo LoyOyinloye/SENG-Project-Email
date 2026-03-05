@@ -115,8 +115,8 @@ class MessageController
             WHERE m.message_id = ? 
             AND (
                 ? = 'admin'
-                OR m.sender_id = ? 
-                OR m.current_owner_id = ?
+                OR (m.sender_id = ? AND m.deleted_by_sender = FALSE)
+                OR (m.current_owner_id = ? AND m.deleted_by_receiver = FALSE)
                 OR EXISTS (SELECT 1 FROM workflow_logs wl WHERE wl.message_id = m.message_id AND (wl.previous_owner_id = ? OR wl.new_owner_id = ?))
             )
         ";
@@ -246,7 +246,7 @@ class MessageController
             SELECT m.*, u.name as sender_name 
             FROM messages m 
             JOIN users u ON m.sender_id = u.user_id 
-            WHERE m.current_owner_id = ? 
+            WHERE m.current_owner_id = ? AND m.deleted_by_receiver = FALSE
             ORDER BY m.created_at DESC
         ");
         $stmt->execute([$user_id]);
@@ -267,7 +267,7 @@ class MessageController
             FROM messages m 
             JOIN users u ON m.sender_id = u.user_id 
             JOIN users owner ON m.current_owner_id = owner.user_id
-            WHERE m.sender_id = ? 
+            WHERE m.sender_id = ? AND m.deleted_by_sender = FALSE
             ORDER BY m.created_at DESC
         ");
         $stmt->execute([$user_id]);
@@ -620,38 +620,51 @@ class MessageController
             return;
         }
 
+        if ($msg['current_status'] === 'returned') {
+            http_response_code(403);
+            echo json_encode(['error' => 'A returned message cannot be deleted']);
+            return;
+        }
+
         // Calculate seconds since message was sent
         $createdAt = strtotime($msg['created_at']);
         $elapsed = time() - $createdAt;
         $isSender = ($msg['sender_id'] == $user_id);
         $isReceiver = ($msg['current_owner_id'] == $user_id);
 
-        // Within DELETE_WINDOW: both sender and receiver can delete
-        // After DELETE_WINDOW: only sender can delete
-        if ($elapsed <= self::DELETE_WINDOW) {
-            if (!$isSender && !$isReceiver) {
-                http_response_code(403);
-                echo json_encode(['error' => 'Only the sender or receiver can delete this message']);
-                return;
-            }
-        }
-        else {
-            if (!$isSender) {
-                http_response_code(403);
-                echo json_encode(['error' => 'Only the sender can delete messages after 1 minute']);
-                return;
-            }
-        }
-
         try {
             $this->db->beginTransaction();
 
-            // Delete workflow logs first (foreign key)
-            $this->db->prepare("DELETE FROM workflow_logs WHERE message_id = ?")->execute([$message_id]);
-            // Attachments cascade via ON DELETE CASCADE, but let's be explicit
-            $this->db->prepare("DELETE FROM attachments WHERE message_id = ?")->execute([$message_id]);
-            // Delete the message
-            $this->db->prepare("DELETE FROM messages WHERE message_id = ?")->execute([$message_id]);
+            if ($isReceiver && !$isSender) {
+                // Receiver deleting
+                if ($elapsed <= self::DELETE_WINDOW) {
+                    // Receiver deletes only for themselves
+                    $this->db->prepare("UPDATE messages SET deleted_by_receiver = TRUE WHERE message_id = ?")->execute([$message_id]);
+                }
+                else {
+                    http_response_code(403);
+                    echo json_encode(['error' => 'Receivers can only delete within 1 minute']);
+                    return;
+                }
+            }
+            elseif ($isSender) {
+                // Sender deleting
+                if ($elapsed <= self::DELETE_WINDOW) {
+                    // Sender recalls within 1 min (hard delete for everyone)
+                    $this->db->prepare("DELETE FROM workflow_logs WHERE message_id = ?")->execute([$message_id]);
+                    $this->db->prepare("DELETE FROM attachments WHERE message_id = ?")->execute([$message_id]);
+                    $this->db->prepare("DELETE FROM messages WHERE message_id = ?")->execute([$message_id]);
+                }
+                else {
+                    // Sender deletes after 1 min (soft delete for sender only)
+                    $this->db->prepare("UPDATE messages SET deleted_by_sender = TRUE WHERE message_id = ?")->execute([$message_id]);
+                }
+            }
+            else {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized to delete this message']);
+                return;
+            }
 
             $this->db->commit();
             echo json_encode(['status' => 'deleted']);

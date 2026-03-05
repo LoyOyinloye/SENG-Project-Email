@@ -176,15 +176,17 @@ export default function SentPage() {
                                             </div>
                                         </div>
                                     </Link>
-                                    <div className="pr-4 flex-shrink-0">
-                                        <button
-                                            onClick={(e) => handleDelete(msg.message_id, e)}
-                                            className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
-                                            title="Delete message"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
+                                    {msg.current_status !== 'returned' && (
+                                        <div className="pr-4 flex-shrink-0">
+                                            <button
+                                                onClick={(e) => handleDelete(msg.message_id, e)}
+                                                className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                                                title="Delete message"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </li>
                         ))}
