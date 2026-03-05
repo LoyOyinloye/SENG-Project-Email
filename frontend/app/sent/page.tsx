@@ -1,15 +1,34 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Send, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
+const STATUS_TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'sent', label: 'Sent' },
+    { key: 'resent', label: 'Resent' },
+    { key: 'forwarded', label: 'Forwarded' },
+    { key: 'returned', label: 'Returned' },
+    { key: 'completed', label: 'Completed' },
+];
+
+const STATUS_COLORS: Record<string, string> = {
+    sent: 'bg-blue-100 text-blue-800',
+    resent: 'bg-purple-100 text-purple-800',
+    forwarded: 'bg-indigo-100 text-indigo-800',
+    returned: 'bg-amber-100 text-amber-800',
+    completed: 'bg-green-100 text-green-800',
+    draft: 'bg-gray-100 text-gray-800',
+};
+
 export default function SentPage() {
     const { user, isLoading } = useAuth() as any;
     const [messages, setMessages] = useState<any[]>([]);
     const [loadingSent, setLoadingSent] = useState(false);
+    const [activeTab, setActiveTab] = useState('all');
     const router = useRouter();
 
     useEffect(() => {
@@ -32,6 +51,22 @@ export default function SentPage() {
         }
     };
 
+    const filteredMessages = useMemo(() => {
+        if (activeTab === 'all') return messages;
+        return messages.filter(m => m.current_status === activeTab);
+    }, [messages, activeTab]);
+
+    // Count per status for tab badges
+    const counts = useMemo(() => {
+        const c: Record<string, number> = { all: messages.length };
+        STATUS_TABS.forEach(t => {
+            if (t.key !== 'all') {
+                c[t.key] = messages.filter(m => m.current_status === t.key).length;
+            }
+        });
+        return c;
+    }, [messages]);
+
     if (isLoading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
 
     return (
@@ -39,6 +74,7 @@ export default function SentPage() {
             <h1 className="text-2xl font-bold text-gray-900">Sent Messages</h1>
 
             <div className="bg-white shadow rounded-lg border border-gray-100">
+                {/* Header */}
                 <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
                     <div className="flex items-center">
                         <Send className="h-5 w-5 text-gray-400 mr-2" />
@@ -56,25 +92,51 @@ export default function SentPage() {
                     </button>
                 </div>
 
-                {messages.length === 0 ? (
+                {/* Status Tabs */}
+                <div className="border-b border-gray-200 px-4 sm:px-6">
+                    <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+                        {STATUS_TABS.map(tab => {
+                            const isActive = activeTab === tab.key;
+                            const count = counts[tab.key] || 0;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${isActive
+                                            ? 'border-indigo-500 text-indigo-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
+                                >
+                                    {tab.label}
+                                    {count > 0 && (
+                                        <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                            {count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                </div>
+
+                {/* Message List */}
+                {filteredMessages.length === 0 ? (
                     <div className="p-12 text-center text-gray-500">
-                        <p>No sent messages found.</p>
+                        <p>{activeTab === 'all' ? 'No sent messages found.' : `No ${activeTab} messages.`}</p>
                     </div>
                 ) : (
                     <ul role="list" className="divide-y divide-gray-200">
-                        {messages.map((msg) => (
+                        {filteredMessages.map((msg) => (
                             <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
-                                <Link href={`/message/${msg.message_id}`} className="block px-4 py-4 sm:px-6">
+                                <Link href={`/message/${msg.message_id}?from=sent`} className="block px-4 py-4 sm:px-6">
                                     <div className="flex items-center justify-between">
                                         <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
                                             {msg.subject}
                                         </div>
                                         <div className="ml-2 flex-shrink-0 flex">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                ${msg.current_status === 'returned' ? 'bg-amber-100 text-amber-800' :
-                                                    msg.current_status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                        msg.current_status === 'forwarded' ? 'bg-indigo-100 text-indigo-800' :
-                                                            'bg-blue-100 text-blue-800'}`}>
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[msg.current_status] || 'bg-gray-100 text-gray-800'
+                                                }`}>
                                                 {msg.current_status}
                                             </span>
                                         </div>
@@ -100,4 +162,3 @@ export default function SentPage() {
         </div>
     );
 }
-

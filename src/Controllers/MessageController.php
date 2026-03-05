@@ -422,7 +422,16 @@ class MessageController
     {
         $this->ensureAuth();
         header('Content-Type: application/json');
-        $data = json_decode(file_get_contents("php://input"), true);
+
+        // Support both JSON and FormData
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (strpos($contentType, 'application/json') !== false) {
+            $data = json_decode(file_get_contents("php://input"), true);
+        }
+        else {
+            $data = $_POST;
+        }
+
         $message_id = $data['message_id'] ?? null;
         $body = $data['body'] ?? '';
 
@@ -476,6 +485,33 @@ class MessageController
             ");
             $update->execute([$body, $reviewer_id, $message_id]);
 
+            // Handle new attachments on resubmit
+            if (!empty($_FILES['attachment']['name'])) {
+                if ($_FILES['attachment']['size'] > self::MAX_FILE_SIZE) {
+                    $this->db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(['error' => 'File size exceeds 5MB limit']);
+                    return;
+                }
+
+                if ($_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
+                    $this->db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(['error' => 'File upload error']);
+                    return;
+                }
+
+                $fileData = file_get_contents($_FILES['attachment']['tmp_name']);
+                $fileName = $_FILES['attachment']['name'];
+                $mimeType = $_FILES['attachment']['type'] ?: 'application/octet-stream';
+                $fileSize = $_FILES['attachment']['size'];
+
+                $attStmt = $this->db->prepare(
+                    "INSERT INTO attachments (message_id, filename, mime_type, file_size, file_data) VALUES (?, ?, ?, ?, ?)"
+                );
+                $attStmt->execute([$message_id, $fileName, $mimeType, $fileSize, $fileData]);
+            }
+
             $log = $this->db->prepare("INSERT INTO workflow_logs (message_id, previous_owner_id, new_owner_id, action_type) VALUES (?, ?, ?, 'RESUBMITTED')");
             $log->execute([$message_id, $_SESSION['user_id'], $reviewer_id]);
 
@@ -524,6 +560,37 @@ class MessageController
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
         }
+    }
+
+    // System logs for admin
+    public function systemLogs()
+    {
+        $this->ensureAuth();
+        header('Content-Type: application/json');
+
+        if (($_SESSION['role'] ?? '') !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required']);
+            return;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT wl.*, 
+                   m.subject as message_subject,
+                   m.current_status as message_status,
+                   sender.name as sender_name,
+                   prev.name as previous_owner_name, 
+                   nw.name as new_owner_name
+            FROM workflow_logs wl 
+            JOIN messages m ON wl.message_id = m.message_id
+            JOIN users sender ON m.sender_id = sender.user_id
+            LEFT JOIN users prev ON wl.previous_owner_id = prev.user_id 
+            LEFT JOIN users nw ON wl.new_owner_id = nw.user_id 
+            ORDER BY wl.timestamp DESC
+            LIMIT 200
+        ");
+        $stmt->execute();
+        echo json_encode($stmt->fetchAll());
     }
 
     private function ensureAuth()

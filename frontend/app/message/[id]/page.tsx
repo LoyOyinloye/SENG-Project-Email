@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AlertTriangle, Send, Paperclip, Download, FileText, Image as ImageIcon } from 'lucide-react';
+import { AlertTriangle, Send, Paperclip, Download, FileText, Image as ImageIcon, Plus } from 'lucide-react';
 
 export default function MessageDetail({ params }: { params: { id: string } }) {
     const { id } = params;
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const fromPage = searchParams.get('from') || 'inbox';
     const { user } = useAuth() as any;
     const [message, setMessage] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -20,6 +22,8 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
 
     // Edit Mode State
     const [editBody, setEditBody] = useState('');
+    const [resubmitFile, setResubmitFile] = useState<File | null>(null);
+    const [fileError, setFileError] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -103,16 +107,23 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
     };
 
     const handleResubmit = async () => {
+        const formData = new FormData();
+        formData.append('message_id', id);
+        formData.append('body', editBody);
+        if (resubmitFile) {
+            formData.append('attachment', resubmitFile);
+        }
+
         const res = await fetch('/api/proxy/messages/resubmit', {
             method: 'POST',
-            body: JSON.stringify({ message_id: id, body: editBody }),
-            headers: { 'Content-Type': 'application/json' }
+            body: formData
         });
         if (res.ok) {
             alert('Message Resubmitted!');
-            router.push('/inbox');
+            router.push(`/${fromPage}`);
         } else {
-            alert('Failed to resubmit message');
+            const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+            alert(`Failed to resubmit: ${err.error || 'Unknown error'}`);
         }
     };
 
@@ -132,10 +143,10 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                 <p className="text-gray-500 mt-1">You do not have permission to view this message, or it does not exist.</p>
             </div>
             <button
-                onClick={() => router.push('/inbox')}
+                onClick={() => router.push(`/${fromPage}`)}
                 className="text-indigo-600 hover:text-indigo-800 font-medium"
             >
-                ← Back to Inbox
+                ← Back to {fromPage === 'sent' ? 'Sent' : 'Inbox'}
             </button>
         </div>
     );
@@ -150,8 +161,8 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
 
     return (
         <div className="bg-white shadow rounded-lg p-6 space-y-6">
-            <button onClick={() => router.push('/inbox')} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium inline-block">
-                ← Back to Inbox
+            <button onClick={() => router.push(`/${fromPage}`)} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium inline-block">
+                ← Back to {fromPage === 'sent' ? 'Sent' : 'Inbox'}
             </button>
 
             <div className="flex justify-between items-start">
@@ -206,14 +217,36 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
 
             {/* Resubmit Action */}
             {isReturned && isOwner && (
-                <div className="border-t pt-6 flex justify-end">
-                    <button
-                        onClick={handleResubmit}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm font-medium flex items-center"
-                    >
-                        <Send className="h-4 w-4 mr-2" />
-                        Resubmit for Review
-                    </button>
+                <div className="border-t pt-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Attach Additional File (optional)</label>
+                        <input
+                            type="file"
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            onChange={(e) => {
+                                const selected = e.target.files ? e.target.files[0] : null;
+                                if (selected && selected.size > 5 * 1024 * 1024) {
+                                    setFileError('File size exceeds 5MB limit');
+                                    setResubmitFile(null);
+                                    e.target.value = '';
+                                } else {
+                                    setFileError('');
+                                    setResubmitFile(selected);
+                                }
+                            }}
+                        />
+                        {fileError && <p className="mt-1 text-sm text-red-600">{fileError}</p>}
+                        <p className="mt-1 text-xs text-gray-400">Maximum file size: 5MB</p>
+                    </div>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={handleResubmit}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm font-medium flex items-center"
+                        >
+                            <Send className="h-4 w-4 mr-2" />
+                            Resubmit for Review
+                        </button>
+                    </div>
                 </div>
             )}
 

@@ -39,5 +39,8 @@ $router->add('POST', '/api/messages/resubmit', 'MessageController@resubmit');
 // Attachment Routes
 $router->add('GET', '/api/attachments/(\d+)', 'MessageController@serveAttachment');
 
+// Admin Routes
+$router->add('GET', '/api/system-logs', 'MessageController@systemLogs');
+
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
