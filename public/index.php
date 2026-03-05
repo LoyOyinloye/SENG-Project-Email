@@ -35,6 +35,7 @@ $router->add('POST', '/api/messages/return', 'MessageController@returnMessage');
 $router->add('POST', '/api/messages/forward', 'MessageController@forward');
 $router->add('POST', '/api/messages/complete', 'MessageController@complete');
 $router->add('POST', '/api/messages/resubmit', 'MessageController@resubmit');
+$router->add('POST', '/api/messages/delete', 'MessageController@deleteMessage');
 
 // Attachment Routes
 $router->add('GET', '/api/attachments/(\d+)', 'MessageController@serveAttachment');

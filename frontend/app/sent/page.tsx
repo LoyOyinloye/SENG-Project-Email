@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Send, RefreshCw } from 'lucide-react';
+import { Send, RefreshCw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_TABS = [
@@ -48,6 +48,27 @@ export default function SentPage() {
             console.error(e);
         } finally {
             setLoadingSent(false);
+        }
+    };
+
+    const handleDelete = async (messageId: number, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) return;
+        try {
+            const res = await fetch('/api/proxy/messages/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message_id: messageId })
+            });
+            if (res.ok) {
+                setMessages(prev => prev.filter(m => m.message_id !== messageId));
+            } else {
+                const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+                alert(`Failed to delete: ${err.error}`);
+            }
+        } catch (e) {
+            alert('Error deleting message');
         }
     };
 
@@ -103,8 +124,8 @@ export default function SentPage() {
                                     key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${isActive
-                                            ? 'border-indigo-500 text-indigo-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-indigo-500 text-indigo-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {tab.label}
@@ -129,31 +150,42 @@ export default function SentPage() {
                     <ul role="list" className="divide-y divide-gray-200">
                         {filteredMessages.map((msg) => (
                             <li key={msg.message_id} className="block hover:bg-gray-50 transition duration-150 ease-in-out">
-                                <Link href={`/message/${msg.message_id}?from=sent`} className="block px-4 py-4 sm:px-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
-                                            {msg.subject}
+                                <div className="flex items-center">
+                                    <Link href={`/message/${msg.message_id}?from=sent`} className="block px-4 py-4 sm:px-6 flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm font-medium text-indigo-600 truncate flex items-center">
+                                                {msg.subject}
+                                            </div>
+                                            <div className="ml-2 flex-shrink-0 flex">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[msg.current_status] || 'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                    {msg.current_status}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="ml-2 flex-shrink-0 flex">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_COLORS[msg.current_status] || 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                {msg.current_status}
-                                            </span>
+                                        <div className="mt-2 sm:flex sm:justify-between">
+                                            <div className="sm:flex">
+                                                <p className="flex items-center text-sm text-gray-500">
+                                                    To: {msg.current_owner_name}
+                                                </p>
+                                            </div>
+                                            <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                                <p>
+                                                    {new Date(msg.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
                                         </div>
+                                    </Link>
+                                    <div className="pr-4 flex-shrink-0">
+                                        <button
+                                            onClick={(e) => handleDelete(msg.message_id, e)}
+                                            className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                                            title="Delete message"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     </div>
-                                    <div className="mt-2 sm:flex sm:justify-between">
-                                        <div className="sm:flex">
-                                            <p className="flex items-center text-sm text-gray-500">
-                                                To: {msg.current_owner_name}
-                                            </p>
-                                        </div>
-                                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                                            <p>
-                                                {new Date(msg.created_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Link>
+                                </div>
                             </li>
                         ))}
                     </ul>

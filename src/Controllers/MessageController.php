@@ -8,6 +8,7 @@ class MessageController
 {
     private $db;
     private const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private const DELETE_WINDOW = 60; // seconds - both sender & receiver can delete within this window
 
     public function __construct()
     {
@@ -591,6 +592,75 @@ class MessageController
         ");
         $stmt->execute();
         echo json_encode($stmt->fetchAll());
+    }
+
+    // Delete a message with time-based access control
+    public function deleteMessage()
+    {
+        $this->ensureAuth();
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+        $message_id = $data['message_id'] ?? null;
+
+        if (!$message_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'message_id is required']);
+            return;
+        }
+
+        $user_id = $_SESSION['user_id'];
+
+        $stmt = $this->db->prepare("SELECT * FROM messages WHERE message_id = ?");
+        $stmt->execute([$message_id]);
+        $msg = $stmt->fetch();
+
+        if (!$msg) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Message not found']);
+            return;
+        }
+
+        // Calculate seconds since message was sent
+        $createdAt = strtotime($msg['created_at']);
+        $elapsed = time() - $createdAt;
+        $isSender = ($msg['sender_id'] == $user_id);
+        $isReceiver = ($msg['current_owner_id'] == $user_id);
+
+        // Within DELETE_WINDOW: both sender and receiver can delete
+        // After DELETE_WINDOW: only sender can delete
+        if ($elapsed <= self::DELETE_WINDOW) {
+            if (!$isSender && !$isReceiver) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Only the sender or receiver can delete this message']);
+                return;
+            }
+        }
+        else {
+            if (!$isSender) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Only the sender can delete messages after 1 minute']);
+                return;
+            }
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // Delete workflow logs first (foreign key)
+            $this->db->prepare("DELETE FROM workflow_logs WHERE message_id = ?")->execute([$message_id]);
+            // Attachments cascade via ON DELETE CASCADE, but let's be explicit
+            $this->db->prepare("DELETE FROM attachments WHERE message_id = ?")->execute([$message_id]);
+            // Delete the message
+            $this->db->prepare("DELETE FROM messages WHERE message_id = ?")->execute([$message_id]);
+
+            $this->db->commit();
+            echo json_encode(['status' => 'deleted']);
+        }
+        catch (\Exception $e) {
+            $this->db->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
     }
 
     private function ensureAuth()
