@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AlertTriangle, Send, Paperclip, Download, FileText, Image as ImageIcon, Plus } from 'lucide-react';
+import { AlertTriangle, Send, Paperclip, Download, FileText, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 export default function MessageDetail({ params }: { params: { id: string } }) {
     const { id } = params;
@@ -24,6 +25,10 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
     const [editBody, setEditBody] = useState('');
     const [resubmitFile, setResubmitFile] = useState<File | null>(null);
     const [fileError, setFileError] = useState('');
+
+    // Modal States
+    const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -93,7 +98,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
     };
 
     const handleComplete = async () => {
-        if (!confirm('Mark as completed?')) return;
+        setShowCompleteModal(false);
         const res = await fetch('/api/proxy/messages/complete', {
             method: 'POST',
             body: JSON.stringify({ message_id: id }),
@@ -102,7 +107,26 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
         if (res.ok) {
             router.push('/inbox');
         } else {
-            alert('Failed to complete message');
+            alert('Failed to mark as completed');
+        }
+    };
+
+    const handleDelete = async () => {
+        setShowDeleteModal(false);
+        try {
+            const res = await fetch('/api/proxy/messages/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message_id: id })
+            });
+            if (res.ok) {
+                router.push(`/${fromPage}`);
+            } else {
+                const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+                alert(`Failed to delete: ${err.error}`);
+            }
+        } catch (e) {
+            alert('Error deleting message');
         }
     };
 
@@ -157,13 +181,34 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
         : null;
 
     const isOwner = message.current_owner_id === user?.id;
+    const isSender = message.sender_id === user?.id;
     const isReturned = message.current_status === 'returned';
 
     return (
         <div className="bg-white shadow rounded-lg p-6 space-y-6">
-            <button onClick={() => router.push(`/${fromPage}`)} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium inline-block">
-                ← Back to {fromPage === 'sent' ? 'Sent' : 'Inbox'}
-            </button>
+            {/* Header / Actions */}
+            <div className="flex items-center justify-between">
+                <button onClick={() => router.push(`/${fromPage}`)} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                    &larr; Back to {fromPage === 'sent' ? 'Sent' : 'Inbox'}
+                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Delete button (hidden if returned) */}
+                    {message.current_status !== 'returned' && (
+                        <button
+                            onClick={() => setShowDeleteModal(true)}
+                            className="bg-red-50 text-red-600 px-4 py-2 rounded border border-red-200 hover:bg-red-100 text-sm font-medium flex items-center justify-center transition-colors"
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                        </button>
+                    )}
+                    {(isSender || isOwner || user?.role === 'admin') && (
+                        <button onClick={() => window.print()} className="bg-white border text-gray-700 px-4 py-2 rounded hover:bg-gray-50 text-sm font-medium">
+                            Print / PDF
+                        </button>
+                    )}
+                </div>
+            </div>
 
             <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-bold">{message.subject}</h2>
@@ -340,7 +385,7 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                     <button onClick={() => setShowForwardModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm font-medium">
                         Forward
                     </button>
-                    <button onClick={handleComplete} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium ml-auto">
+                    <button onClick={() => setShowCompleteModal(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium ml-auto">
                         Mark as Completed
                     </button>
                 </div>
@@ -411,6 +456,25 @@ export default function MessageDetail({ params }: { params: { id: string } }) {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={showCompleteModal}
+                title="Complete Workflow"
+                message="Are you sure you want to mark this workflow as completed? The workflow will end here."
+                confirmText="Mark as Complete"
+                onConfirm={handleComplete}
+                onCancel={() => setShowCompleteModal(false)}
+            />
+
+            <ConfirmModal
+                isOpen={showDeleteModal}
+                title="Delete Message"
+                message="Are you sure you want to delete this message? This action cannot be undone."
+                confirmText="Delete Message"
+                isDestructive={true}
+                onConfirm={handleDelete}
+                onCancel={() => setShowDeleteModal(false)}
+            />
         </div>
     );
 }

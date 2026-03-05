@@ -5,11 +5,17 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Inbox, RefreshCw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 export default function InboxPage() {
     const { user, isLoading } = useAuth() as any;
     const [messages, setMessages] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // Modal state
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [messageToDelete, setMessageToDelete] = useState<number | null>(null);
+
     const router = useRouter();
 
     useEffect(() => {
@@ -32,24 +38,32 @@ export default function InboxPage() {
         }
     };
 
-    const handleDelete = async (messageId: number, e: React.MouseEvent) => {
+    const confirmDelete = (messageId: number, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) return;
+        setMessageToDelete(messageId);
+        setDeleteModalOpen(true);
+    };
+
+    const handleDelete = async () => {
+        if (!messageToDelete) return;
+        setDeleteModalOpen(false);
         try {
             const res = await fetch('/api/proxy/messages/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message_id: messageId })
+                body: JSON.stringify({ message_id: messageToDelete })
             });
             if (res.ok) {
-                setMessages(prev => prev.filter(m => m.message_id !== messageId));
+                setMessages(prev => prev.filter(m => m.message_id !== messageToDelete));
             } else {
                 const err = await res.json().catch(() => ({ error: 'Unknown error' }));
                 alert(`Failed to delete: ${err.error}`);
             }
         } catch (e) {
             alert('Error deleting message');
+        } finally {
+            setMessageToDelete(null);
         }
     };
 
@@ -124,7 +138,7 @@ export default function InboxPage() {
                                         {msg.current_status !== 'returned' && (
                                             <div className="pr-4 flex-shrink-0">
                                                 <button
-                                                    onClick={(e) => handleDelete(msg.message_id, e)}
+                                                    onClick={(e) => confirmDelete(msg.message_id, e)}
                                                     className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
                                                     title="Delete message"
                                                 >
@@ -138,6 +152,13 @@ export default function InboxPage() {
                             </ul>
                         )}
                     </div>
+            <ConfirmModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={handleDelete}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this message? This action cannot be undone."
+            />
         </div>
             );
 }
