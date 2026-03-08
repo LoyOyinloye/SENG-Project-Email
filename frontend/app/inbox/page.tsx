@@ -154,7 +154,7 @@ export default function InboxPage() {
 
             <ConfirmModal
                 isOpen={deleteModalOpen}
-                onClose={() => setDeleteModalOpen(false)}
+                onCancel={() => setDeleteModalOpen(false)}
                 onConfirm={handleDelete}
                 title="Confirm Deletion"
                 message="Are you sure you want to delete this message? This action cannot be undone."
