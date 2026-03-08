@@ -42,6 +42,10 @@ $router->add('GET', '/api/attachments/(\d+)', 'MessageController@serveAttachment
 
 // Admin Routes
 $router->add('GET', '/api/system-logs', 'MessageController@systemLogs');
+$router->add('GET', '/api/admin/users', 'AdminController@listUsers');
+$router->add('POST', '/api/admin/users', 'AdminController@createUser');
+$router->add('PUT', '/api/admin/users/(\d+)', 'AdminController@updateUser');
+$router->add('DELETE', '/api/admin/users/(\d+)', 'AdminController@deleteUser');
 
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
