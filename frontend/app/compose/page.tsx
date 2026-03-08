@@ -113,6 +113,7 @@ export default function ComposePage() {
                     <label className="block text-sm font-medium text-gray-700">Attachment (Optional):</label>
                     <input
                         type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*"
                         className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                         onChange={(e) => {
                             const selected = e.target.files ? e.target.files[0] : null;
