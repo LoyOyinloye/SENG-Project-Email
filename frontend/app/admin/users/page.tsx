@@ -76,10 +76,8 @@ export default function AdminUsersPage() {
         const url = isEdit ? `/api/proxy/admin/users/${editingUser.user_id}` : '/api/proxy/admin/users';
         const method = isEdit ? 'PUT' : 'POST';
 
-        const payload = { ...formData };
-        if (isEdit && !payload.password) {
-            delete payload.password;
-        }
+        const { password, ...rest } = formData;
+        const payload = (isEdit && !password) ? rest : formData;
 
         try {
             const res = await fetch(url, {
